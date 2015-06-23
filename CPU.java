@@ -9,7 +9,8 @@ package NESMaJster;
  * @author Administrator
  */
 class CPU {
-        private enum CMD{
+        static final short MAX_RAM_SIZE = 2048;
+        enum CMD{
             STOP ((byte)0x00),
             ADD  ((byte)0x01),
             LDA  ((byte)0x02),
@@ -58,7 +59,7 @@ class CPU {
             
         }
 	CPU(){
-            RAM = new byte[NESMaJster.Const.MAX_RAM_SIZE];
+            RAM = new byte[MAX_RAM_SIZE];
         }
 	void run(){
             do{} while (execute());
