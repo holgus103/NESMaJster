@@ -10,5 +10,5 @@ package NESMaJster;
  * @author Administrator
  */
 public class Const {
-    
+    //smieciowy komentarz
 }
