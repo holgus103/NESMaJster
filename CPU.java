@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package nesemu;
+package NESMaJster;
 /**
  *
  * @author Administrator
@@ -38,10 +38,11 @@ class CPU {
             
         }
 	boolean execute(){
-            switch (RAM[PC]){
+        CMD temp = CMD.values()[RAM[PC]];
+            switch (temp){
         case ADD:
 		PC++;
-		A = A + RAM[PC];
+		A = (byte)(A + RAM[PC]);
 		break;
 	case LDA:
 		PC++;
@@ -57,7 +58,7 @@ class CPU {
             
         }
 	CPU(){
-            RAM = new byte[Const.MAX_RAM_SIZE];
+            RAM = new byte[NESMaJster.Const.MAX_RAM_SIZE];
         }
 	void run(){
             do{} while (execute());
