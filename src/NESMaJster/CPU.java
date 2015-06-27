@@ -49,6 +49,7 @@ class CPU {
 //			this.No = input;
 //		}
 //	}
+	static final short MAX_RAM_SIZE=2048;
 	private enum CMD {
 		BRK ((byte)0x00),
 		PHP ((byte)0x08),
@@ -287,7 +288,7 @@ class CPU {
             
         }
 	CPU(){
-            RAM = new byte[NESMaJster.Const.MAX_RAM_SIZE];
+            RAM = new byte[MAX_RAM_SIZE];
         }
 	void run(){
             do{} while (execute());
