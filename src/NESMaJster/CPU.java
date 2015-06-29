@@ -50,13 +50,15 @@ class CPU {
 		SEI((byte) 0x78), ARR((byte) 0x6B), DEY((byte) 0x88), BCC((byte) 0x90),
 		TYA((byte) 0x98), SHY((byte) 0x9C), TXA((byte) 0x8A), TXS((byte) 0x9A),
 		SHX((byte) 0x9E), XAA((byte) 0x8B), TAS((byte) 0x9B), TAY((byte) 0xAC),
-		BCS((byte) 0xB0), CLV((byte) 0xB8),	TAX((byte) 0xAA), TSX((byte) 0xBA),
-		LAS((byte) 0xBB), INY((byte) 0xC8),	BNE((byte) 0xD0), CLD((byte) 0xD8),
-		DEX((byte) 0xCA), AXS((byte) 0xCB),	INX((byte) 0xE8), BEQ((byte) 0xF0),
-		SED((byte) 0xF8), ORA((byte) 0x01),	AND((byte) 0x21), EOR((byte) 0x41),
-		ADC((byte) 0x61), STA((byte) 0x81),	LDA((byte) 0xA1), CMP((byte) 0xC1),
-		SBC((byte) 0xE1), NOP((byte) 0x04),	BIT((byte) 0x24), JMP((byte) 0x4C),
-		CPX((byte) 0xE0), CPY((byte) 0xC0), STY((byte) 0x84), LDY((byte) 0xA0);
+		BCS((byte) 0xB0), CLV((byte) 0xB8), TAX((byte) 0xAA), TSX((byte) 0xBA),
+		LAS((byte) 0xBB), INY((byte) 0xC8), BNE((byte) 0xD0), CLD((byte) 0xD8),
+		DEX((byte) 0xCA), AXS((byte) 0xCB), INX((byte) 0xE8), BEQ((byte) 0xF0),
+		SED((byte) 0xF8), ORA((byte) 0x01), AND((byte) 0x21), EOR((byte) 0x41),
+		ADC((byte) 0x61), STA((byte) 0x81), LDA((byte) 0xA1), CMP((byte) 0xC1),
+		SBC((byte) 0xE1), NOP((byte) 0x04), BIT((byte) 0x24), JMP((byte) 0x4C),
+		CPX((byte) 0xE0), CPY((byte) 0xC0), STY((byte) 0x84), LDY((byte) 0xA0),
+                STP((byte) 0x02), ASL((byte) 0x06)
+                ;
 		CMD(byte b) {}
 	}
 	private class MemoryMapper {
@@ -284,6 +286,27 @@ class CPU {
 					return CMD.NOP;
 				break;
 			case 2://xxxx xx10
+                            if((opcode & 0x8F) ==2 || (opcode & 0x12) == 0x12 )
+                                command = CMD.STP;
+                            else{
+                                
+                            switch(opcode & 0xE0){
+                                case 0x00:
+                                    if((opcode & 0xFF) == 0x1A)
+                                        command =CMD.NOP;
+                                    else
+                                        command = CMD.ASL;
+                                            
+                                case 0x20:
+                                case 0x40:
+                                case 0x60:
+                                case 0x80:
+                                case 0xA0:
+                                case 0xC0:
+                                case 0xE0:
+                                      
+                            }
+                            }
 			case 3://xxxx xx11
 				switch (opcode & 0xE0) {//1110 0000
 					case 0x00://000x xx11
