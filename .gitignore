@@ -3,3 +3,9 @@
 /.idea/
 /.classpath
 /NESMaJster.iml
+/nbproject/private/
+build.xml
+*.mf
+nbproject/build-impl.xml
+*.properties
+nbproject/project.xml
