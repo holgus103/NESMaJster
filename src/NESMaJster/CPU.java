@@ -209,36 +209,36 @@ class CPU {
 	private CMD command(byte opcode) {
 		CMD command;
 		byte tmp = (byte) (opcode & 0x1F);
-		switch (opcode & 0x03) {
-			case 0:
-				if((opcode & 0x07) == 4) {
-					switch(opcode & 0xE0) {
-						case 0x00:
+		switch (opcode & 0x03) {//0000 0011
+			case 0://xxxx xx00
+				if((opcode & 0x07) == 4) {//xxxx x100
+					switch(opcode & 0xE0) {//1110 0000
+						case 0x00://000x x100
 							return CMD.NOP;
-						case 0x20:
+						case 0x20://001x x100 - 2,3 | 4,C
 							if((opcode & 0x10) == 0)
 								return CMD.BIT;
 							else
 								return CMD.NOP;
-						case 0x40:
-						case 0x60:
+						case 0x40://4,5|4,C
+						case 0x60://6,7|4,C
 							if((opcode & 0x1F) == 0x0C)
 								return CMD.JMP;
 							else
 								return CMD.NOP;
-						case 0x80:
+						case 0x80://8,9|4,C
 							if((opcode & 0x1F) == 0x1C)
 								return CMD.SHY;
 							else
 								return CMD.STY;
-						case 0xA0:
+						case 0xA0://A,B|4,C
 							return CMD.LDY;
-						case 0xC0:
+						case 0xC0://C,D| 4,C
 							if((opcode & 0x10) == 0)
 								return CMD.CPY;
 							else
 								return CMD.NOP;
-						case 0xE0:
+						case 0xE0://E,F| 4,C
 							if((opcode & 0x10) == 0)
 								return CMD.CPX;
 							else
@@ -246,7 +246,7 @@ class CPU {
 					}
 				}
 				else {
-					switch((int)opcode) {
+					switch((int)opcode) {//xxxx x000
 						case 0x80:
 							return CMD.NOP;
 						case 0xA0:
@@ -260,34 +260,34 @@ class CPU {
 					}
 				}
 				break;
-			case 1:
-				switch (opcode & 0xE0) {
-					case 0x00:
+			case 1://xxxx xx01
+				switch (opcode & 0xE0) {//1110 0000 
+					case 0x00://000x xx01 - 0,1|1,5,9,D
 						return CMD.ORA;
-					case 0x20:
+					case 0x20://2,3
 						return CMD.AND;
-					case 0x40:
+					case 0x40://4,5
 						return CMD.EOR;
-					case 0x60:
+					case 0x60://6,7
 						return CMD.ADC;
-					case 0x80:
+					case 0x80://8,9
 						return CMD.STA;
-					case 0xA0:
+					case 0xA0://A,b
 						return CMD.LDA;
-					case 0xC0:
+					case 0xC0://C,D
 						return CMD.CMP;
-					case 0xE0:
+					case 0xE0://E,F
 						return CMD.SBC;
 				}
 				//niechlubny wyjatek
 				if (opcode == 0x89)
 					return CMD.NOP;
 				break;
-			case 2:
-			case 3:
-				switch (opcode & 0xE0) {
-					case 0x00:
-						switch (opcode & 0x1F) {
+			case 2://xxxx xx10
+			case 3://xxxx xx11
+				switch (opcode & 0xE0) {//1110 0000
+					case 0x00://000x xx11
+						switch (opcode & 0x1F) {//0001 1111 
 							case 0x00:
 								command = CMD.BRK;
 								break;
@@ -300,7 +300,7 @@ class CPU {
 								break;
 						}
 						break;
-					case 0x20:
+					case 0x20://001x xx11
 						command = CMD.AND;
 						break;
 					case 0x40:
@@ -323,8 +323,10 @@ class CPU {
 						break;
 				}
 				break;
+                        default:
 			return CMD.values()[opcode];
 		}
+                return command;
 	}
 
 	void stackPush(byte value) {//push decrements, pop increments from 00 to FF with offset 0100
