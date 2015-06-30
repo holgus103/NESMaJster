@@ -16,6 +16,7 @@ public class NESEMU {
      */
     public static void main(String[] args) {
             System.out.printf("Hello user!");
+    CPU asd = new CPU();
 // TODO code application logic here
     }
     

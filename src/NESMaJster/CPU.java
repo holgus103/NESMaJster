@@ -8,12 +8,16 @@ package NESMaJster;
 
 import com.sun.jndi.cosnaming.IiopUrl;
 import com.sun.org.apache.bcel.internal.generic.NOP;
+import java.io.FileReader;
+import java.io.BufferedReader;
+import java.io.IOException;
 
 /**
  *
  * @author Administrator
  */
 class CPU {
+    
 
 	//zagniezdzone klasy
 	private enum AddressingMode {
@@ -57,7 +61,8 @@ class CPU {
 		ADC((byte) 0x61), STA((byte) 0x81), LDA((byte) 0xA1), CMP((byte) 0xC1),
 		SBC((byte) 0xE1), NOP((byte) 0x04), BIT((byte) 0x24), JMP((byte) 0x4C),
 		CPX((byte) 0xE0), CPY((byte) 0xC0), STY((byte) 0x84), LDY((byte) 0xA0),
-                STP((byte) 0x02), ASL((byte) 0x06)
+                STP((byte) 0x02), ASL((byte) 0x06), ROL ((byte) 0x26), LSR((byte) 0x46),
+                ROR((byte) 0x66)
                 ;
 		CMD(byte b) {}
 	}
@@ -87,7 +92,7 @@ class CPU {
 	}
 
 	//pola
-    byte A;
+        byte A;
 	byte X;
 	byte Y;
 	byte SP;
@@ -96,6 +101,7 @@ class CPU {
 	byte P;
 	private Instruction currentInstruction;
 	private MemoryMapper memMap;
+        private String[] ops;
 	//
 
 	//metody
@@ -208,148 +214,8 @@ class CPU {
 		}
 		return addrMode;
 	}
-	private CMD command(byte opcode) {
-		CMD command;
-		byte tmp = (byte) (opcode & 0x1F);
-		switch (opcode & 0x03) {//0000 0011
-			case 0://xxxx xx00
-				if((opcode & 0x07) == 4) {//xxxx x100
-					switch(opcode & 0xE0) {//1110 0000
-						case 0x00://000x x100
-							return CMD.NOP;
-						case 0x20://001x x100 - 2,3 | 4,C
-							if((opcode & 0x10) == 0)
-								return CMD.BIT;
-							else
-								return CMD.NOP;
-						case 0x40://4,5|4,C
-						case 0x60://6,7|4,C
-							if((opcode & 0x1F) == 0x0C)
-								return CMD.JMP;
-							else
-								return CMD.NOP;
-						case 0x80://8,9|4,C
-							if((opcode & 0x1F) == 0x1C)
-								return CMD.SHY;
-							else
-								return CMD.STY;
-						case 0xA0://A,B|4,C
-							return CMD.LDY;
-						case 0xC0://C,D| 4,C
-							if((opcode & 0x10) == 0)
-								return CMD.CPY;
-							else
-								return CMD.NOP;
-						case 0xE0://E,F| 4,C
-							if((opcode & 0x10) == 0)
-								return CMD.CPX;
-							else
-								return CMD.NOP;
-					}
-				}
-				else {
-					switch((int)opcode) {//xxxx x000
-						case 0x80:
-							return CMD.NOP;
-						case 0xA0:
-							return CMD.LDY;
-						case 0xC0:
-							return CMD.CPY;
-						case 0xE0:
-							return CMD.CPX;
-						default:
-							return CMD.values()[opcode];
-					}
-				}
-				break;
-			case 1://xxxx xx01
-				switch (opcode & 0xE0) {//1110 0000 
-					case 0x00://000x xx01 - 0,1|1,5,9,D
-						return CMD.ORA;
-					case 0x20://2,3
-						return CMD.AND;
-					case 0x40://4,5
-						return CMD.EOR;
-					case 0x60://6,7
-						return CMD.ADC;
-					case 0x80://8,9
-						return CMD.STA;
-					case 0xA0://A,b
-						return CMD.LDA;
-					case 0xC0://C,D
-						return CMD.CMP;
-					case 0xE0://E,F
-						return CMD.SBC;
-				}
-				//niechlubny wyjatek
-				if (opcode == 0x89)
-					return CMD.NOP;
-				break;
-			case 2://xxxx xx10
-                            if((opcode & 0x8F) ==2 || (opcode & 0x12) == 0x12 )
-                                command = CMD.STP;
-                            else{
-                                
-                            switch(opcode & 0xE0){
-                                case 0x00:
-                                    if((opcode & 0xFF) == 0x1A)
-                                        command =CMD.NOP;
-                                    else
-                                        command = CMD.ASL;
-                                            
-                                case 0x20:
-                                case 0x40:
-                                case 0x60:
-                                case 0x80:
-                                case 0xA0:
-                                case 0xC0:
-                                case 0xE0:
-                                      
-                            }
-                            }
-			case 3://xxxx xx11
-				switch (opcode & 0xE0) {//1110 0000
-					case 0x00://000x xx11
-						switch (opcode & 0x1F) {//0001 1111 
-							case 0x00:
-								command = CMD.BRK;
-								break;
-							case 0x04:
-							case 0x0C:
-							case 0x14:
-							case 0x1C:
-							case 0x1A:
-								command = CMD.NOP;
-								break;
-						}
-						break;
-					case 0x20://001x xx11
-						command = CMD.AND;
-						break;
-					case 0x40:
-						command = CMD.EOR;
-						break;
-					case 0x60:
-						command = CMD.ADC;
-						break;
-					case 0x80:
-						command = CMD.STA;
-						break;
-					case 0xA0:
-						command = CMD.LDA;
-						break;
-					case 0xC0:
-						command = CMD.CMP;
-						break;
-					case 0xE0:
-						command = CMD.SBC;
-						break;
-				}
-				break;
-                        default:
-			return CMD.values()[opcode];
-		}
-                return command;
+	private CMD command(byte opcode) {	
+                return CMD.valueOf(ops[opcode]);
 	}
 
 	void stackPush(byte value) {//push decrements, pop increments from 00 to FF with offset 0100
@@ -369,7 +235,20 @@ class CPU {
             
 	}
 	CPU(){
+            final String OPCODES_PATH = "C:\\opcodes.txt"; 
 		memMap=new MemoryMapper();
+                ops = new String[256];
+                try{
+                FileReader file = new FileReader(OPCODES_PATH);
+                BufferedReader textReader = new BufferedReader(file);
+                for(int i=0;i<256;i++){
+                    ops[i]= textReader.readLine();
+                }
+                }
+                catch(IOException e){
+                    
+                }
+                
 	}
 	void run(){
 		do{/*przerwanie!*/} while (executeInstruction());
