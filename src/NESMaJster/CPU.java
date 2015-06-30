@@ -47,24 +47,11 @@ class CPU {
 		}
 	}
 	private enum CMD {
-		BRK((byte) 0x00), PHP((byte) 0x08), BPL((byte) 0x10), CLC((byte) 0x18),
-		JSR((byte) 0x20), PLP((byte) 0x28), BMI((byte) 0x30), SEC((byte) 0x38),
-		RTI((byte) 0x40), PHA((byte) 0x48), BVC((byte) 0x50), CLI((byte) 0x58),
-		ALR((byte) 0x4B), RTS((byte) 0x60), PLA((byte) 0x68), BVS((byte) 0x70),
-		SEI((byte) 0x78), ARR((byte) 0x6B), DEY((byte) 0x88), BCC((byte) 0x90),
-		TYA((byte) 0x98), SHY((byte) 0x9C), TXA((byte) 0x8A), TXS((byte) 0x9A),
-		SHX((byte) 0x9E), XAA((byte) 0x8B), TAS((byte) 0x9B), TAY((byte) 0xAC),
-		BCS((byte) 0xB0), CLV((byte) 0xB8), TAX((byte) 0xAA), TSX((byte) 0xBA),
-		LAS((byte) 0xBB), INY((byte) 0xC8), BNE((byte) 0xD0), CLD((byte) 0xD8),
-		DEX((byte) 0xCA), AXS((byte) 0xCB), INX((byte) 0xE8), BEQ((byte) 0xF0),
-		SED((byte) 0xF8), ORA((byte) 0x01), AND((byte) 0x21), EOR((byte) 0x41),
-		ADC((byte) 0x61), STA((byte) 0x81), LDA((byte) 0xA1), CMP((byte) 0xC1),
-		SBC((byte) 0xE1), NOP((byte) 0x04), BIT((byte) 0x24), JMP((byte) 0x4C),
-		CPX((byte) 0xE0), CPY((byte) 0xC0), STY((byte) 0x84), LDY((byte) 0xA0),
-                STP((byte) 0x02), ASL((byte) 0x06), ROL ((byte) 0x26), LSR((byte) 0x46),
-                ROR((byte) 0x66)
-                ;
-		CMD(byte b) {}
+            BRK,ORA,STP,SLO,NOP,ASL,PHP,ANC,BPL,CLC,JSR,AND,RLA,BIT,ROL,PLP,BMI,
+            SEC,RTI,EOR,SRE,LSR,PHA,ALR,JMP,BVC,CLI,RTS,ADC,RRA,ROR,PLA,ARR,BVS,
+            SEI,STA,SAX,STY,STX,DEY,TXA,XAA,BCC,AHX,TYA,TXS,TAS,SHY,SHX,LDY,LDA,
+            LDX,LAX,TAY,TAX,BCS,CLV,TSX,LAS,CPY,CMP,DCP,DEC,INY,DEX,AXS,BNE,CLD,
+            CPX,SBC,ISC,INC,INX,BEQ,SED;
 	}
 	private class MemoryMapper {
 		static final short MAX_RAM_SIZE=2048;
