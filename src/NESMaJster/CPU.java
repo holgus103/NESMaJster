@@ -8,12 +8,16 @@ package NESMaJster;
 
 import com.sun.jndi.cosnaming.IiopUrl;
 import com.sun.org.apache.bcel.internal.generic.NOP;
+import java.io.FileReader;
+import java.io.BufferedReader;
+import java.io.IOException;
 
 /**
  *
  * @author Administrator
  */
 class CPU {
+    
 
 	//zagniezdzone klasy
 	private enum AddressingMode {
@@ -43,21 +47,11 @@ class CPU {
 		}
 	}
 	private enum CMD {
-		BRK((byte) 0x00), PHP((byte) 0x08), BPL((byte) 0x10), CLC((byte) 0x18),
-		JSR((byte) 0x20), PLP((byte) 0x28), BMI((byte) 0x30), SEC((byte) 0x38),
-		RTI((byte) 0x40), PHA((byte) 0x48), BVC((byte) 0x50), CLI((byte) 0x58),
-		ALR((byte) 0x4B), RTS((byte) 0x60), PLA((byte) 0x68), BVS((byte) 0x70),
-		SEI((byte) 0x78), ARR((byte) 0x6B), DEY((byte) 0x88), BCC((byte) 0x90),
-		TYA((byte) 0x98), SHY((byte) 0x9C), TXA((byte) 0x8A), TXS((byte) 0x9A),
-		SHX((byte) 0x9E), XAA((byte) 0x8B), TAS((byte) 0x9B), TAY((byte) 0xAC),
-		BCS((byte) 0xB0), CLV((byte) 0xB8),	TAX((byte) 0xAA), TSX((byte) 0xBA),
-		LAS((byte) 0xBB), INY((byte) 0xC8),	BNE((byte) 0xD0), CLD((byte) 0xD8),
-		DEX((byte) 0xCA), AXS((byte) 0xCB),	INX((byte) 0xE8), BEQ((byte) 0xF0),
-		SED((byte) 0xF8), ORA((byte) 0x01),	AND((byte) 0x21), EOR((byte) 0x41),
-		ADC((byte) 0x61), STA((byte) 0x81),	LDA((byte) 0xA1), CMP((byte) 0xC1),
-		SBC((byte) 0xE1), NOP((byte) 0x04),	BIT((byte) 0x24), JMP((byte) 0x4C),
-		CPX((byte) 0xE0), CPY((byte) 0xC0), STY((byte) 0x84), LDY((byte) 0xA0);
-		CMD(byte b) {}
+            BRK,ORA,STP,SLO,NOP,ASL,PHP,ANC,BPL,CLC,JSR,AND,RLA,BIT,ROL,PLP,BMI,
+            SEC,RTI,EOR,SRE,LSR,PHA,ALR,JMP,BVC,CLI,RTS,ADC,RRA,ROR,PLA,ARR,BVS,
+            SEI,STA,SAX,STY,STX,DEY,TXA,XAA,BCC,AHX,TYA,TXS,TAS,SHY,SHX,LDY,LDA,
+            LDX,LAX,TAY,TAX,BCS,CLV,TSX,LAS,CPY,CMP,DCP,DEC,INY,DEX,AXS,BNE,CLD,
+            CPX,SBC,ISC,INC,INX,BEQ,SED;
 	}
 	private class MemoryMapper {
 		static final short MAX_RAM_SIZE=2048;
@@ -85,7 +79,7 @@ class CPU {
 	}
 
 	//pola
-    byte A;
+        byte A;
 	byte X;
 	byte Y;
 	byte SP;
@@ -94,6 +88,7 @@ class CPU {
 	byte P;
 	private Instruction currentInstruction;
 	private MemoryMapper memMap;
+        private String[] ops;
 	//
 
 	//metody
@@ -206,125 +201,8 @@ class CPU {
 		}
 		return addrMode;
 	}
-	private CMD command(byte opcode) {
-		CMD command;
-		byte tmp = (byte) (opcode & 0x1F);
-		switch (opcode & 0x03) {
-			case 0:
-				if((opcode & 0x07) == 4) {
-					switch(opcode & 0xE0) {
-						case 0x00:
-							return CMD.NOP;
-						case 0x20:
-							if((opcode & 0x10) == 0)
-								return CMD.BIT;
-							else
-								return CMD.NOP;
-						case 0x40:
-						case 0x60:
-							if((opcode & 0x1F) == 0x0C)
-								return CMD.JMP;
-							else
-								return CMD.NOP;
-						case 0x80:
-							if((opcode & 0x1F) == 0x1C)
-								return CMD.SHY;
-							else
-								return CMD.STY;
-						case 0xA0:
-							return CMD.LDY;
-						case 0xC0:
-							if((opcode & 0x10) == 0)
-								return CMD.CPY;
-							else
-								return CMD.NOP;
-						case 0xE0:
-							if((opcode & 0x10) == 0)
-								return CMD.CPX;
-							else
-								return CMD.NOP;
-					}
-				}
-				else {
-					switch((int)opcode) {
-						case 0x80:
-							return CMD.NOP;
-						case 0xA0:
-							return CMD.LDY;
-						case 0xC0:
-							return CMD.CPY;
-						case 0xE0:
-							return CMD.CPX;
-						default:
-							return CMD.values()[opcode];
-					}
-				}
-				break;
-			case 1:
-				switch (opcode & 0xE0) {
-					case 0x00:
-						return CMD.ORA;
-					case 0x20:
-						return CMD.AND;
-					case 0x40:
-						return CMD.EOR;
-					case 0x60:
-						return CMD.ADC;
-					case 0x80:
-						return CMD.STA;
-					case 0xA0:
-						return CMD.LDA;
-					case 0xC0:
-						return CMD.CMP;
-					case 0xE0:
-						return CMD.SBC;
-				}
-				//niechlubny wyjatek
-				if (opcode == 0x89)
-					return CMD.NOP;
-				break;
-			case 2:
-			case 3:
-				switch (opcode & 0xE0) {
-					case 0x00:
-						switch (opcode & 0x1F) {
-							case 0x00:
-								command = CMD.BRK;
-								break;
-							case 0x04:
-							case 0x0C:
-							case 0x14:
-							case 0x1C:
-							case 0x1A:
-								command = CMD.NOP;
-								break;
-						}
-						break;
-					case 0x20:
-						command = CMD.AND;
-						break;
-					case 0x40:
-						command = CMD.EOR;
-						break;
-					case 0x60:
-						command = CMD.ADC;
-						break;
-					case 0x80:
-						command = CMD.STA;
-						break;
-					case 0xA0:
-						command = CMD.LDA;
-						break;
-					case 0xC0:
-						command = CMD.CMP;
-						break;
-					case 0xE0:
-						command = CMD.SBC;
-						break;
-				}
-				break;
-			return CMD.values()[opcode];
-		}
+	private CMD command(byte opcode) {	
+                return CMD.valueOf(ops[opcode]);
 	}
 
 	void stackPush(byte value) {//push decrements, pop increments from 00 to FF with offset 0100
@@ -344,7 +222,20 @@ class CPU {
             
 	}
 	CPU(){
+            final String OPCODES_PATH = "C:\\opcodes.txt"; 
 		memMap=new MemoryMapper();
+                ops = new String[256];
+                try{
+                FileReader file = new FileReader(OPCODES_PATH);
+                BufferedReader textReader = new BufferedReader(file);
+                for(int i=0;i<256;i++){
+                    ops[i]= textReader.readLine();
+                }
+                }
+                catch(IOException e){
+                    
+                }
+                
 	}
 	void run(){
 		do{/*przerwanie!*/} while (executeInstruction());
