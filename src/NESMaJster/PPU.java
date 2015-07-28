@@ -5,10 +5,8 @@
  */
 package NESMaJster;
 
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
-
 import java.awt.image.BufferedImage;
-import java.util.List;
+import java.awt.image.IndexColorModel;
 
 /**
  *
@@ -43,9 +41,10 @@ public class PPU {
 
     //rejestry do sprite'ow
     byte[] fgBmpHigh,fgBmpLow,fgXPos,fgAttr,timesUsed;
+    Screen screen;
 
 
-    PPU(){
+    PPU(Screen screen){
         VRAM = new MemoryMapper();
         primaryOAM =new Sprite[PRIMARY_OAM_SIZE];
         secondaryOAM=new Sprite[SECONDARY_OAM_SIZE];
@@ -56,6 +55,7 @@ public class PPU {
         timesUsed=new byte[SECONDARY_OAM_SIZE];
         PPUCTRL=PPUMASK=PPUSTATUS=0;
         PPUMASK=0x1E;
+        this.screen=screen;
     }
     class MemoryMapper {
         byte[] VRAM;
@@ -110,17 +110,26 @@ public class PPU {
         }
     }
     public byte[][] render() throws InterruptedException {
+        PPUSTATUS&=0x7F;
         byte[][] img;
         img=new byte[FRAME_HEIGHT][];
         //linia -1 do zrobienia (nic ciekawego sie w niej nie dzieje...
-        VRAMAddr= (byte) (xScroll/8 + ((PPUCTRL&0x3)<<10)-1);
-        tempVRAMAddr= VRAMAddr;
+        //VRAMAddr= (short) (xScroll/8 + ((((PPUCTRL&0x3)-1)&0x3)<<10)+0x73FE);
+        //System.out.printf("%x\n",VRAMAddr);
+        int realXScroll=xScroll < 0? xScroll+256:xScroll;
+        tempVRAMAddr= (short) (realXScroll/8+((PPUCTRL&0x3)<<10));
+        VRAMAddr=(short) (tempVRAMAddr+0x73E0);
+        for(int i=0;i<FRAME_WIDTH/8-2;++i)
+            VRAMAddr=nextVRAMAddr();
+        System.out.printf("%x\n",VRAMAddr);
         loadBgRegisters();
         loadBgPaletteReg();
         bgBmpLow>>=8;
         bgBmpHigh>>=8;
         loadBgRegisters();
-        --VRAMAddr;
+        System.out.printf("%x\n",VRAMAddr);
+        //VRAMAddr-=0x400;
+        //--VRAMAddr;
         //updateBgRegisters();
         for(i=0;i<FRAME_HEIGHT;++i) {
             //rownolegle trzeba wyznaczyc sprite'y do nastepnej linii - spritesInLine
@@ -134,23 +143,11 @@ public class PPU {
             t.start();
             img[i] = drawLine();
             t.join();
-            //automagicznie sie podniesie y bo x==32
-            //++VRAMAddr;
-            //trzeba zaktualizowac przesuniecie wewnatrz plytki
-            VRAMAddr+=0x1000;
-            if((VRAMAddr&0x8000) == 0)
-                VRAMAddr-=0x0020;
-            //VRAMAddr jest 15-bitowy!
-            VRAMAddr&=0x7FFF;
             //ladujemy sprite'y dla nastepnej linii do rejestrow
             loadSprites();
             //ladujemy 2 plytki do nastepnej linii!
             loadBgRegisters();
             loadBgPaletteReg();
-            bgBmpHigh>>=8;
-            bgBmpLow>>=8;
-            loadBgRegisters();
-            --VRAMAddr;
             //??? rozkmin to Kuba
             //Two bytes are fetched, but the purpose for this is unknown. These fetches are 2 PPU cycles each.
         }
@@ -167,12 +164,40 @@ public class PPU {
     }
     private byte getBgPixel() {
         //offset = 1<<(fineX % 8)
-        int offset=(1<<(xScroll%8));
+        int offset=xScroll%8;
         if((PPUMASK &0x08) == 0)
             return 0;
-        byte res = (byte) (((bgPaletteHigh&offset)<<3)+((bgPaletteLow&offset)<<2)
-                +((bgBmpHigh&offset)<<1)+((bgBmpLow&offset)));
+        byte res = (byte) ((((bgPaletteHigh>>offset)&1)<<3)+(((bgPaletteLow>>offset)&1)<<2)
+                +(((bgBmpHigh>>offset)&1)<<1)+(((bgBmpLow>>offset)&1)));
         return res;
+    }
+    private short nextVRAMAddr() {
+        short nextVRAMAddr =this.VRAMAddr;
+        if((nextVRAMAddr &0x1F)==(tempVRAMAddr+31)%32 && (xScroll %8 == 0)) {
+            //podnosimy y
+            nextVRAMAddr += 0x1000;
+            if ((nextVRAMAddr & 0x8000) != 0) {
+                //po y==-1(31) mamy y=0
+                if((nextVRAMAddr&0x3E0) == 0x3E0)
+                    nextVRAMAddr&=0xFC1F;
+                else
+                    nextVRAMAddr+=0x0020;
+            }
+            if(xScroll != 0 )
+                nextVRAMAddr -=0x0400;
+            nextVRAMAddr &=0x7FE0;
+            nextVRAMAddr |=tempVRAMAddr&0x1F;
+            return nextVRAMAddr;
+        }
+        if((nextVRAMAddr &0x1F) == 31) {
+            //przechodzimy do nastepnego ekranu
+            nextVRAMAddr +=0x0400;
+            nextVRAMAddr &=0x7FE0;
+            return nextVRAMAddr;
+        }
+        ++nextVRAMAddr;
+        nextVRAMAddr &=0x7FFF;
+        return nextVRAMAddr;
     }
     private void updateBgRegisters() {
         bgPaletteHigh>>=1;
@@ -189,11 +214,11 @@ public class PPU {
             bgPaletteLow&=0x70;
     }
     private void loadBgRegisters() {
-        ++VRAMAddr;
+        VRAMAddr=nextVRAMAddr();
         //przesuniecie y wewnatrz plytki
-        int yOffset=(VRAMAddr&0x7000)>>12;
-        int n=(VRAMAddr&0x0C00)>>10;
-        short addr= (short) (0x2000+n*0x400+(VRAMAddr&0x3FF)+yOffset);
+        short nextVRAMAddr=nextVRAMAddr();
+        int yOffset=(nextVRAMAddr&0x7000)>>12;
+        short addr= (short) (0x2000+(nextVRAMAddr&0xFFF)+yOffset);
         int patternTable=0;
         if((PPUCTRL & 0x10) == 1)
             patternTable=0x1000;
@@ -204,9 +229,10 @@ public class PPU {
     }
     private void loadBgPaletteReg() {
         //y jest przesuniete!!!
-        int y=VRAMAddr&0x3E0;
-        int x=VRAMAddr&0x1F;
-        int n=(VRAMAddr&0xC00)>>10;
+        short nextVRAMAddr=nextVRAMAddr();
+        int y=nextVRAMAddr&0x3E0;
+        int x=nextVRAMAddr&0x1F;
+        int n=(nextVRAMAddr&0xC00)>>10;
         byte bgNextPalette=VRAM.readByte((short) (y/4+x/4+0x23C0+0x400*n));
         int xMask=(x&0x10) > 0?1:1<<3;
         int yMask=(y&0x10) > 0?1:1<<5;
@@ -317,15 +343,51 @@ public class PPU {
     }
     BufferedImage draw() throws InterruptedException {
         byte[][] picture=render();
-        BufferedImage bi=new BufferedImage(FRAME_WIDTH,FRAME_HEIGHT,BufferedImage.TYPE_INT_RGB);
+        byte[] r={(byte)0x75, (byte)0x27, (byte)0x0, (byte)0x47, (byte)0x8F, (byte)0xAB, (byte)0xA7,
+                (byte)0x7F, (byte)0x43, (byte)0x0, (byte)0x0, (byte)0x0, (byte)0x1B, (byte)0x0,
+                (byte)0x0, (byte)0x0, (byte)0xBC, (byte)0x0, (byte)0x23, (byte)0x83, (byte)0xBF,
+                (byte)0xE7, (byte)0xDB, (byte)0xCB, (byte)0x8B, (byte)0x0, (byte)0x0, (byte)0x0,
+                (byte)0x0, (byte)0x0, (byte)0x0, (byte)0x0, (byte)0xFF, (byte)0x3F, (byte)0x5F,
+                (byte)0xA7, (byte)0xF7, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xF3, (byte)0x83,
+                (byte)0x4F, (byte)0x58, (byte)0x0, (byte)0x0, (byte)0x0, (byte)0x0, (byte)0xFF,
+                (byte)0xAB, (byte)0xC7, (byte)0xD7, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF,
+                (byte)0xFF, (byte)0xE3, (byte)0xAB, (byte)0xB3, (byte)0x9F, (byte)0x0, (byte)0x0,
+                (byte)0x0};
+        byte[] g={(byte)0x75, (byte)0x1B, (byte)0x0, (byte)0x0, (byte)0x0, (byte)0x0, (byte)0x0,
+                (byte)0x0B, (byte)0x2F, (byte)0x47, (byte)0x51, (byte)0x3F, (byte)0x3F, (byte)0x0,
+                (byte)0x0, (byte)0x0, (byte)0xBC, (byte)0x73, (byte)0x3B, (byte)0x0, (byte)0x0,
+                (byte)0x0, (byte)0x2B, (byte)0x4F, (byte)0x73, (byte)0x97, (byte)0xAB, (byte)0x93,
+                (byte)0x83, (byte)0x0, (byte)0x0, (byte)0x0, (byte)0xFF, (byte)0xBF, (byte)0x97,
+                (byte)0x8B, (byte)0x7B, (byte)0x77, (byte)0x77, (byte)0x9B, (byte)0xBF, (byte)0xD3,
+                (byte)0xDF, (byte)0xF8, (byte)0xEB, (byte)0x0, (byte)0x0, (byte)0x0, (byte)0xFF,
+                (byte)0xE7, (byte)0xD7, (byte)0xCB, (byte)0xC7, (byte)0xC7, (byte)0xBF, (byte)0xDB,
+                (byte)0xE7, (byte)0xFF, (byte)0xF3, (byte)0xFF, (byte)0xFF, (byte)0x0, (byte)0x0,
+                (byte)0x0};
+        byte[] b = {(byte) 0x75, (byte) 0x8F, (byte) 0xAB, (byte) 0x9F, (byte) 0x77, (byte) 0x13,
+                (byte) 0x0, (byte) 0x0, (byte) 0x0, (byte) 0x0, (byte) 0x0, (byte) 0x17, (byte) 0x5F,
+                (byte) 0x0, (byte) 0x0, (byte) 0x0, (byte) 0xBC, (byte) 0xEF, (byte) 0xEF,
+                (byte) 0xF3, (byte) 0xBF, (byte) 0x5B, (byte) 0x0, (byte) 0x0F, (byte) 0x0,
+                (byte) 0x0, (byte) 0x0, (byte) 0x3B,
+                (byte) 0x8B, (byte) 0x0, (byte) 0x0, (byte) 0x0, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF,
+                (byte) 0xFD, (byte) 0xFF, (byte) 0xB7, (byte) 0x63, (byte) 0x3B, (byte) 0x3F, (byte) 0x13,
+                (byte) 0x4B, (byte) 0x98, (byte) 0xDB, (byte) 0x0, (byte) 0x0, (byte) 0x0, (byte) 0xFF,
+                (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xDB, (byte) 0xB3, (byte) 0xAB,
+                (byte) 0xA3, (byte) 0xA3, (byte) 0xBF, (byte) 0xCF, (byte) 0xF3, (byte) 0x0, (byte) 0x0,
+                (byte) 0x0};
+        IndexColorModel icm=new IndexColorModel(6,64,r,g,b);
+        BufferedImage bi=new BufferedImage(FRAME_WIDTH,FRAME_HEIGHT,
+                BufferedImage.TYPE_BYTE_INDEXED,icm);
         for(int i=0;i<FRAME_WIDTH;++i)
             for(int j=0;j<FRAME_HEIGHT;++j) {
-                if (picture[j][i] == 0)
-                    bi.setRGB(i, j, 0);
-                else {
-                    bi.setRGB(i, j, 0x00FFFFFF);
-                }
+                bi.setRGB(i,j,icm.getRGB(picture[j][i]));
+                //if (picture[j][i] == 0)
+                //    bi.setRGB(i, j, 0);
+               // else {
+                 //   bi.setRGB(i, j, 0x00FFFFFF);
+                //}
             }
+        screen.setImg(bi);
+        screen.repaint();
         return bi;
     }
 }

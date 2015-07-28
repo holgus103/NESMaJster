@@ -5,6 +5,8 @@
  */
 package NESMaJster;
 
+import org.apache.tools.ant.taskdefs.Sleep;
+
 import javax.swing.*;
 import java.awt.image.BufferedImage;
 import java.util.Random;
@@ -20,7 +22,8 @@ public class NESEMU {
      */
     public static void main(String[] args) throws InterruptedException {
         JFrame frame=new JFrame("Demo");
-        PPU ppu=new PPU();
+        Screen screen=new Screen();
+        PPU ppu=new PPU(screen);
         CPU cpu=new CPU();
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         BufferedImage bi=new BufferedImage(256,240, BufferedImage.TYPE_INT_RGB);
@@ -63,16 +66,24 @@ public class NESEMU {
             for(int i=6;i<8;++i)
                 ppu.VRAM.setByte((short)(48+i+j*8), (byte) 0xFF);
         }
+        for(int i=0x2000;i<0x23C0;i+=2)
+            ppu.VRAM.setByte((short)i,(byte)4);
+        ppu.xScroll=(byte)0;
         ppu.putSprite(0, (byte) 30, (byte) 126, (byte) 0,(byte)1);
         ppu.putSprite(1,(byte)40,(byte)126,(byte)0,(byte)2);
         ppu.putSprite(2,(byte)50,(byte)126,(byte)0,(byte)3);
-        ppu.putSprite(3,(byte)60,(byte)126,(byte)0,(byte)1);
-        ppu.VRAM.setByte((short) 0x3F03, (byte) 1);
-        ppu.VRAM.setByte((short)0x3F13,(byte)1);
-        System.out.printf("%x",ppu.VRAM.readByte((short)6));
-        frame.getContentPane().add(new JLabel(new ImageIcon(ppu.draw())));
+        ppu.putSprite(3, (byte) 60, (byte) 126, (byte) 0, (byte) 1);
+        ppu.VRAM.setByte((short) 0x3F03, (byte) 0x05);
+        ppu.VRAM.setByte((short) 0x3F13, (byte) 0x29);
+        frame.getContentPane().add(screen);
+        ppu.draw();
         frame.pack();
         frame.setVisible(true);
+        for(int i=0;i<32;++i) {
+            Thread.sleep(1000);
+            ppu.xScroll+=8;
+            ppu.draw();
+        }
 // TODO code application logic here
     }
     
