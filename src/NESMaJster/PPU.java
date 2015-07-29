@@ -122,6 +122,8 @@ public class PPU {
         for(int i=0;i<FRAME_WIDTH/8-2;++i)
             VRAMAddr=nextVRAMAddr();
         System.out.printf("%x\n",VRAMAddr);
+        if(xScroll % 8 != 0)
+            loadBgRegisters();
         loadBgRegisters();
         loadBgPaletteReg();
         bgBmpLow>>=8;
@@ -147,6 +149,11 @@ public class PPU {
             loadSprites();
             //ladujemy 2 plytki do nastepnej linii!
             loadBgRegisters();
+            if(xScroll%8 != 0) {
+                bgBmpHigh>>=8;
+                bgBmpLow>>=8;
+                loadBgRegisters();
+            }
             loadBgPaletteReg();
             //??? rozkmin to Kuba
             //Two bytes are fetched, but the purpose for this is unknown. These fetches are 2 PPU cycles each.
@@ -173,7 +180,9 @@ public class PPU {
     }
     private short nextVRAMAddr() {
         short nextVRAMAddr =this.VRAMAddr;
-        if((nextVRAMAddr &0x1F)==(tempVRAMAddr+31)%32 && (xScroll %8 == 0)) {
+        if(((nextVRAMAddr &0x1F)==(tempVRAMAddr+31)%32 && (xScroll %8 == 0))
+                ||((nextVRAMAddr%32) == (tempVRAMAddr+32)%32 && (xScroll %8 != 0)
+                &&((nextVRAMAddr&0xC00) != (tempVRAMAddr&0xC00)))) {
             //podnosimy y
             nextVRAMAddr += 0x1000;
             if ((nextVRAMAddr & 0x8000) != 0) {
@@ -305,8 +314,31 @@ public class PPU {
                 int patternTable=0;
                 if((PPUCTRL & 0x08) == 1)
                     patternTable=0x1000;
-                fgBmpHigh[i] = VRAM.readByte((short) (secondaryOAM[i].tileIndex*16 + this.i-secondaryOAM[i].y+patternTable));
-                fgBmpLow[i] = VRAM.readByte((short) (secondaryOAM[i].tileIndex*16 + this.i-secondaryOAM[i].y + 8 + patternTable));
+                if((secondaryOAM[i].attributes &0x80) != 0) {
+                    fgBmpHigh[i] = VRAM.readByte((short)(secondaryOAM[i].tileIndex*16 +
+                            7 - this.i+secondaryOAM[i].y+patternTable));
+                    fgBmpLow[i] = VRAM.readByte((short) (secondaryOAM[i].tileIndex*16 +
+                            7 - this.i+secondaryOAM[i].y + 8 + patternTable));
+                }
+                else {
+                    fgBmpHigh[i] = VRAM.readByte((short) (secondaryOAM[i].tileIndex * 16 +
+                            this.i - secondaryOAM[i].y + patternTable));
+                    fgBmpLow[i] = VRAM.readByte((short) (secondaryOAM[i].tileIndex * 16 +
+                            this.i - secondaryOAM[i].y + 8 + patternTable));
+                }
+                if((secondaryOAM[i].attributes & 0x40) != 0) {
+                    byte invertedHigh=0,invertedLow=0;
+                    for(int j=0;j < 8; ++j) {
+                        invertedHigh<<=1;
+                        invertedLow<<=1;
+                        invertedHigh|=(fgBmpHigh[i]&1);
+                        invertedLow|=(fgBmpLow[i]&1);
+                        fgBmpHigh[i]>>=1;
+                        fgBmpLow[i]>>=1;
+                    }
+                    fgBmpHigh[i]=invertedHigh;
+                    fgBmpLow[i]=invertedLow;
+                }
             }
             fgAttr[i] = secondaryOAM[i].attributes;
             fgXPos[i]=secondaryOAM[i].x;

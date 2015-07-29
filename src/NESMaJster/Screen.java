@@ -10,14 +10,15 @@ public class Screen extends Canvas {
     private BufferedImage img;
 
     public Screen() {
-        this.setSize(256,240);
+        this.setSize(512,480);
     }
 
     @Override
     public void paint(Graphics g) {
         super.paint(g);
+        Rectangle rc = this.getBounds();
         if(img != null)
-            g.drawImage(img,0,0,null);
+            g.drawImage(img,0,0,rc.width,rc.height,null);
     }
 
     public void setImg(BufferedImage img) {

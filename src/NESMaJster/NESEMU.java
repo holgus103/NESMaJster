@@ -8,6 +8,7 @@ package NESMaJster;
 import org.apache.tools.ant.taskdefs.Sleep;
 
 import javax.swing.*;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.Random;
 
@@ -68,14 +69,15 @@ public class NESEMU {
         }
         for(int i=0x2000;i<0x23C0;i+=2)
             ppu.VRAM.setByte((short)i,(byte)4);
-        ppu.xScroll=(byte)0;
-        ppu.putSprite(0, (byte) 30, (byte) 126, (byte) 0,(byte)1);
-        ppu.putSprite(1,(byte)40,(byte)126,(byte)0,(byte)2);
-        ppu.putSprite(2,(byte)50,(byte)126,(byte)0,(byte)3);
-        ppu.putSprite(3, (byte) 60, (byte) 126, (byte) 0, (byte) 1);
+        ppu.xScroll=(byte)7;
+        ppu.putSprite(0, (byte) 30, (byte) 126, (byte) 0x80,(byte)1);
+        ppu.putSprite(1,(byte)40,(byte)126,(byte)0x80,(byte)2);
+        ppu.putSprite(2,(byte)50,(byte)126,(byte)0x80,(byte)3);
+        ppu.putSprite(3, (byte) 60, (byte) 126, (byte) 0x40, (byte) 1);
         ppu.VRAM.setByte((short) 0x3F03, (byte) 0x05);
         ppu.VRAM.setByte((short) 0x3F13, (byte) 0x29);
-        frame.getContentPane().add(screen);
+        frame.setContentPane(new JPanel(new BorderLayout()));
+        frame.getContentPane().add(screen,BorderLayout.CENTER);
         ppu.draw();
         frame.pack();
         frame.setVisible(true);
